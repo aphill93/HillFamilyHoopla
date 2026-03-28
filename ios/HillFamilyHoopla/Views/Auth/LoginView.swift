@@ -6,6 +6,7 @@ struct LoginView: View {
     @State private var password: String = ""
     @State private var rememberMe: Bool = false
     @State private var showForgotPassword: Bool = false
+    @State private var showRegister: Bool = false
     @FocusState private var focusedField: Field?
 
     enum Field: Hashable { case email, password }
@@ -123,6 +124,16 @@ struct LoginView: View {
                     .background(.background, in: RoundedRectangle(cornerRadius: 16))
                     .shadow(color: .black.opacity(0.06), radius: 12, y: 4)
 
+                    // Create account link
+                    HStack(spacing: 4) {
+                        Text("Don't have an account?")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Button("Create account") { showRegister = true }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.blue)
+                    }
+
                     Spacer()
                 }
                 .padding()
@@ -133,6 +144,11 @@ struct LoginView: View {
         }
         .sheet(isPresented: $showForgotPassword) {
             ForgotPasswordView()
+                .environmentObject(authViewModel)
+        }
+        .sheet(isPresented: $showRegister) {
+            RegisterView()
+                .environmentObject(authViewModel)
         }
     }
 

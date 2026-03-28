@@ -3,6 +3,7 @@ import { sign, verify } from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { config } from "../config.js";
 import { query, queryOne, withTransaction } from "../db/client.js";
+import { EmailService } from "./email.service.js";
 import {
   generateSecureToken,
   hashToken,
@@ -172,6 +173,11 @@ export const AuthService = {
       expiresAt,
       tokenType: "Bearer",
     };
+
+    // Send verification email (non-blocking — don't fail registration if email fails)
+    EmailService.sendVerificationEmail(email.toLowerCase(), name, verificationToken).catch(
+      (err) => console.error("[email] Failed to send verification email:", err)
+    );
 
     return {
       user,
@@ -365,6 +371,11 @@ export const AuthService = {
     const resetToken = generateSecureToken(32);
     const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
+    const nameRow = await queryOne<{ name: string }>(
+      "SELECT name FROM users WHERE id = $1",
+      [user.id]
+    );
+
     await query(
       `UPDATE users
        SET password_reset_token = $1, password_reset_expires = $2
@@ -372,8 +383,12 @@ export const AuthService = {
       [resetToken, resetExpires, user.id]
     );
 
-    // TODO: Send email via ResendService
-    // await ResendService.sendPasswordReset(email, resetToken);
+    // Non-blocking — don't reveal whether email was sent
+    EmailService.sendPasswordResetEmail(
+      email.toLowerCase(),
+      nameRow?.name ?? "there",
+      resetToken
+    ).catch((err) => console.error("[email] Failed to send password reset email:", err));
   },
 
   // ── Reset password ────────────────────────────────────────────────────────

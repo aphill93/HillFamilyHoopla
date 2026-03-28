@@ -12,6 +12,12 @@ import type pg from "pg";
 
 // ─── Row mappers ──────────────────────────────────────────────────────────────
 
+// pg returns Date objects for timestamp columns — normalise to ISO strings
+function toISO(v: unknown): string {
+  if (v instanceof Date) return v.toISOString();
+  return v as string;
+}
+
 function rowToEvent(row: Record<string, unknown>): CalendarEvent {
   return {
     id: row["id"] as string,
@@ -20,8 +26,8 @@ function rowToEvent(row: Record<string, unknown>): CalendarEvent {
     title: row["title"] as string,
     description: (row["description"] as string | null) ?? null,
     location: (row["location"] as string | null) ?? null,
-    startTime: row["start_time"] as string,
-    endTime: row["end_time"] as string,
+    startTime: toISO(row["start_time"]),
+    endTime: toISO(row["end_time"]),
     isAllDay: row["is_all_day"] as boolean,
     category: (row["category"] as CalendarEvent["category"]) ?? null,
     colorOverride: (row["color_override"] as string | null) ?? null,
@@ -31,8 +37,8 @@ function rowToEvent(row: Record<string, unknown>): CalendarEvent {
     isCancelled: row["is_cancelled"] as boolean,
     externalId: (row["external_id"] as string | null) ?? null,
     externalSource: (row["external_source"] as CalendarEvent["externalSource"]) ?? null,
-    createdAt: row["created_at"] as string,
-    updatedAt: row["updated_at"] as string,
+    createdAt: toISO(row["created_at"]),
+    updatedAt: toISO(row["updated_at"]),
   };
 }
 

@@ -1,13 +1,10 @@
 import bcrypt from "bcryptjs";
-import { sign, verify } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { config } from "../config.js";
 import { query, queryOne, withTransaction } from "../db/client.js";
 import { EmailService } from "./email.service.js";
-import {
-  generateSecureToken,
-  hashToken,
-} from "../utils/crypto.js";
+import { generateSecureToken, hashToken } from "../utils/crypto.js";
 import type {
   LoginRequest,
   LoginResponse,
@@ -18,6 +15,13 @@ import type {
   UserProfile,
   JwtPayload,
 } from "@hillfamilyhoopla/shared";
+
+const { sign } = jwt;
+
+function toISO(v: unknown): string {
+  if (v instanceof Date) return v.toISOString();
+  return v as string;
+}
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 
@@ -105,9 +109,9 @@ function rowToUserProfile(row: Record<string, unknown>): UserProfile {
     profileColor: row["profile_color"] as UserProfile["profileColor"],
     role: row["role"] as UserProfile["role"],
     emailVerified: row["email_verified"] as boolean,
-    lastLoginAt: (row["last_login_at"] as string | null) ?? null,
-    createdAt: row["created_at"] as string,
-    updatedAt: row["updated_at"] as string,
+    lastLoginAt: toISO(row["last_login_at"] as Date | null) ?? null,
+    createdAt: toISO(row["created_at"]),
+    updatedAt: toISO(row["updated_at"]),
   };
 }
 

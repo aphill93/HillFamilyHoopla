@@ -1,6 +1,7 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { verify, type JwtPayload as JWTVerifyPayload } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+const { verify } = jwt;
 import type { RequestUser } from "@hillfamilyhoopla/shared";
 import { config } from "../config.js";
 import { queryOne } from "../db/client.js";

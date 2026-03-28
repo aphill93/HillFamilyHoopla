@@ -49,6 +49,11 @@ export function setTokens(tokens: AuthToken): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
   localStorage.setItem(EXPIRES_AT_KEY, String(tokens.expiresAt));
+  // Sync to cookie so Next.js middleware (edge runtime) can check auth state.
+  // Not httpOnly by design — middleware uses it only for redirect decisions;
+  // all security enforcement happens on the API via JWT verification.
+  const maxAge = tokens.expiresAt - Math.floor(Date.now() / 1000);
+  document.cookie = `${ACCESS_TOKEN_KEY}=${tokens.accessToken}; path=/; SameSite=Strict; max-age=${maxAge}`;
 }
 
 export function clearTokens(): void {
@@ -56,6 +61,8 @@ export function clearTokens(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(EXPIRES_AT_KEY);
+  // Clear the middleware cookie
+  document.cookie = `${ACCESS_TOKEN_KEY}=; path=/; SameSite=Strict; max-age=0`;
 }
 
 export function isTokenExpired(): boolean {

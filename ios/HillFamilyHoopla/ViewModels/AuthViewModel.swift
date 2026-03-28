@@ -109,6 +109,25 @@ final class AuthViewModel: ObservableObject {
         }
     }
 
+    // ── Reset password ────────────────────────────────────────────────────────
+
+    func resetPassword(token: String, newPassword: String) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            try await authService.resetPassword(token: token, newPassword: newPassword)
+            return true
+        } catch let error as AuthError {
+            errorMessage = error.localizedDescription
+            return false
+        } catch {
+            errorMessage = "Password reset failed. Please try again."
+            return false
+        }
+    }
+
     // ── Verify email ──────────────────────────────────────────────────────────
 
     func verifyEmail(token: String) async {

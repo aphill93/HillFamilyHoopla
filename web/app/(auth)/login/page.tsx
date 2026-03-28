@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { z } from "zod";
@@ -13,6 +13,8 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const passwordReset = searchParams.get("reset") === "true";
   const { login } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -68,6 +70,11 @@ export default function LoginPage() {
 
         {/* Login card */}
         <div className="bg-card border rounded-lg shadow-sm p-8 space-y-6">
+          {passwordReset && (
+            <div role="status" className="bg-green-50 border border-green-200 text-green-800 rounded-md px-4 py-3 text-sm">
+              Password updated successfully. Please sign in with your new password.
+            </div>
+          )}
           {error && (
             <div
               role="alert"
@@ -189,6 +196,13 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          <p className="text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="text-primary hover:underline font-medium">
+              Create account
+            </Link>
+          </p>
         </div>
       </div>
     </div>

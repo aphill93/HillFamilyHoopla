@@ -2,13 +2,17 @@ import { query, queryOne } from "../db/client.js";
 import type {
   UserProfile,
   User,
-  CreateUserPayload,
   UpdateUserPayload,
   AdminUpdateUserPayload,
   UserRole,
 } from "@hillfamilyhoopla/shared";
 import bcrypt from "bcryptjs";
 import { config } from "../config.js";
+
+function toISO(v: unknown): string {
+  if (v instanceof Date) return v.toISOString();
+  return v as string;
+}
 
 // ─── Row → profile mapper ─────────────────────────────────────────────────────
 
@@ -23,9 +27,9 @@ function rowToProfile(row: Record<string, unknown>): UserProfile {
     profileColor: row["profile_color"] as UserProfile["profileColor"],
     role: row["role"] as UserRole,
     emailVerified: row["email_verified"] as boolean,
-    lastLoginAt: (row["last_login_at"] as string | null) ?? null,
-    createdAt: row["created_at"] as string,
-    updatedAt: row["updated_at"] as string,
+    lastLoginAt: toISO(row["last_login_at"] as Date | null) ?? null,
+    createdAt: toISO(row["created_at"]),
+    updatedAt: toISO(row["updated_at"]),
   };
 }
 
@@ -33,7 +37,7 @@ function rowToUser(row: Record<string, unknown>): User {
   return {
     ...rowToProfile(row),
     failedLoginAttempts: row["failed_login_attempts"] as number,
-    lockedUntil: (row["locked_until"] as string | null) ?? null,
+    lockedUntil: toISO(row["locked_until"] as Date | null) ?? null,
   };
 }
 

@@ -5,6 +5,11 @@ import type {
   UpdateCalendarLayerPayload,
 } from "@hillfamilyhoopla/shared";
 
+function toISO(v: unknown): string {
+  if (v instanceof Date) return v.toISOString();
+  return v as string;
+}
+
 // ─── Row mapper ───────────────────────────────────────────────────────────────
 
 function rowToLayer(row: Record<string, unknown>): CalendarLayer {
@@ -16,7 +21,7 @@ function rowToLayer(row: Record<string, unknown>): CalendarLayer {
     isFamilyLayer: row["is_family_layer"] as boolean,
     isVisible:     row["is_visible"] as boolean,
     sortOrder:     row["sort_order"] as number,
-    createdAt:     row["created_at"] as string,
+    createdAt:     toISO(row["created_at"]),
   };
 }
 

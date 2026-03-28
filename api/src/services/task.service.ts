@@ -10,6 +10,11 @@ import type {
   TaskPriority,
 } from "@hillfamilyhoopla/shared";
 
+function toISO(v: unknown): string {
+  if (v instanceof Date) return v.toISOString();
+  return v as string;
+}
+
 // ─── Row mappers ──────────────────────────────────────────────────────────────
 
 function rowToTask(row: Record<string, unknown>): Task {
@@ -25,9 +30,9 @@ function rowToTask(row: Record<string, unknown>): Task {
     isKidMode: row["is_kid_mode"] as boolean,
     celebrationShown: row["celebration_shown"] as boolean,
     category: (row["category"] as string | null) ?? null,
-    completedAt: (row["completed_at"] as string | null) ?? null,
-    createdAt: row["created_at"] as string,
-    updatedAt: row["updated_at"] as string,
+    completedAt: toISO(row["completed_at"] as Date | null) ?? null,
+    createdAt: toISO(row["created_at"]),
+    updatedAt: toISO(row["updated_at"]),
     assignee: row["assignee_id"]
       ? {
           id: row["assignee_id"] as string,
@@ -44,7 +49,7 @@ function rowToComment(row: Record<string, unknown>): TaskComment {
     taskId: row["task_id"] as string,
     userId: row["user_id"] as string,
     content: row["content"] as string,
-    createdAt: row["created_at"] as string,
+    createdAt: toISO(row["created_at"]),
     author: row["author_id"]
       ? {
           id: row["author_id"] as string,

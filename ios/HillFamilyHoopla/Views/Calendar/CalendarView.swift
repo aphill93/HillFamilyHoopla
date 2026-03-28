@@ -314,22 +314,277 @@ struct EventDetailSheet: View {
     }
 }
 
-// ─── Create event sheet (stub) ────────────────────────────────────────────────
+// ─── Create event sheet ───────────────────────────────────────────────────────
 
 struct CreateEventSheet: View {
     @EnvironmentObject var viewModel: CalendarViewModel
     @Environment(\.dismiss) private var dismiss
 
+    /// Pre-filled start date (e.g. tapped from day cell)
+    var initialDate: Date = Date()
+
+    // ── Form fields ──────────────────────────────────────────────────────────
+    @State private var title:       String = ""
+    @State private var description: String = ""
+    @State private var location:    String = ""
+    @State private var isAllDay:    Bool   = false
+    @State private var startDate:   Date   = Date()
+    @State private var endDate:     Date   = Date().addingTimeInterval(3600)
+    @State private var category:    EventCategory? = nil
+    @State private var selectedLayerId: String = ""
+    @State private var attendeeIds: Set<String> = []
+    @State private var reminderMinutes: Int = 30
+
+    // ── UI state ─────────────────────────────────────────────────────────────
+    @State private var isSubmitting: Bool   = false
+    @State private var errorMessage: String? = nil
+    @State private var members: [MemberProfile] = []
+    @FocusState private var titleFocused: Bool
+
+    // ── Reminder options ─────────────────────────────────────────────────────
+    private let reminderOptions: [(label: String, minutes: Int)] = [
+        ("None",        0),
+        ("5 minutes",   5),
+        ("15 minutes",  15),
+        ("30 minutes",  30),
+        ("1 hour",      60),
+        ("1 day",       1440),
+    ]
+
     var body: some View {
         NavigationStack {
-            Text("Create Event — coming soon")
-                .navigationTitle("New Event")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { dismiss() }
+            Form {
+                // Title + all-day
+                Section {
+                    TextField("Title", text: $title)
+                        .focused($titleFocused)
+                    Toggle("All day", isOn: $isAllDay.animation())
+                }
+
+                // Dates
+                Section {
+                    if isAllDay {
+                        DatePicker("Start", selection: $startDate, displayedComponents: .date)
+                        DatePicker("End",   selection: $endDate,   in: startDate..., displayedComponents: .date)
+                    } else {
+                        DatePicker("Start", selection: $startDate)
+                        DatePicker("End",   selection: $endDate,   in: startDate...)
                     }
                 }
+
+                // Calendar layer
+                if !viewModel.layers.isEmpty {
+                    Section("Calendar") {
+                        Picker("Calendar", selection: $selectedLayerId) {
+                            ForEach(viewModel.layers) { layer in
+                                HStack {
+                                    Circle()
+                                        .fill(Color(hex: layer.color) ?? .blue)
+                                        .frame(width: 10, height: 10)
+                                    Text(layer.name)
+                                }
+                                .tag(layer.id)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                }
+
+                // Category
+                Section("Category") {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(EventCategory.allCases, id: \.self) { cat in
+                                CategoryChip(
+                                    category: cat,
+                                    isSelected: category == cat
+                                ) {
+                                    category = (category == cat) ? nil : cat
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+
+                // Location
+                Section("Location") {
+                    TextField("Add location", text: $location)
+                }
+
+                // Description
+                Section("Description") {
+                    TextField("Add notes", text: $description, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+
+                // Attendees
+                if !members.isEmpty {
+                    Section("Attendees") {
+                        ForEach(members) { member in
+                            HStack {
+                                Circle()
+                                    .fill(Color(hex: member.profileColor) ?? .blue)
+                                    .frame(width: 28, height: 28)
+                                    .overlay(
+                                        Text(member.name.prefix(1))
+                                            .font(.caption.bold())
+                                            .foregroundStyle(.white)
+                                    )
+                                Text(member.name)
+                                Spacer()
+                                if attendeeIds.contains(member.id) {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { toggleAttendee(member.id) }
+                        }
+                    }
+                }
+
+                // Reminder
+                Section("Reminder") {
+                    Picker("Remind me", selection: $reminderMinutes) {
+                        ForEach(reminderOptions, id: \.minutes) { option in
+                            Text(option.label).tag(option.minutes)
+                        }
+                    }
+                }
+
+                // Error
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                            .font(.callout)
+                    }
+                }
+            }
+            .navigationTitle("New Event")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") { Task { await submit() } }
+                        .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || isSubmitting)
+                        .overlay {
+                            if isSubmitting {
+                                ProgressView().scaleEffect(0.8)
+                            }
+                        }
+                }
+            }
+            .onAppear {
+                startDate = initialDate
+                endDate   = initialDate.addingTimeInterval(3600)
+                titleFocused = true
+                // Pre-select family layer if available
+                if let family = viewModel.layers.first(where: { $0.isFamilyLayer }) {
+                    selectedLayerId = family.id
+                } else {
+                    selectedLayerId = viewModel.layers.first?.id ?? ""
+                }
+                Task { await loadMembers() }
+            }
         }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private func toggleAttendee(_ id: String) {
+        if attendeeIds.contains(id) { attendeeIds.remove(id) }
+        else { attendeeIds.insert(id) }
+    }
+
+    private func loadMembers() async {
+        do {
+            struct Response: Decodable { let users: [MemberProfile] }
+            let response: Response = try await APIClient.shared.get(path: "/users")
+            members = response.users
+        } catch {
+            // Non-critical; form still functional without attendees
+        }
+    }
+
+    private func submit() async {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
+        guard !trimmedTitle.isEmpty else { return }
+        guard !selectedLayerId.isEmpty else {
+            errorMessage = "Please select a calendar."; return
+        }
+
+        let iso = ISO8601DateFormatter()
+        let startISO = iso.string(from: isAllDay ? Calendar.current.startOfDay(for: startDate) : startDate)
+        var endForISO = endDate
+        if isAllDay {
+            // End of day
+            endForISO = Calendar.current.date(
+                bySettingHour: 23, minute: 59, second: 59, of: endDate
+            ) ?? endDate
+        }
+        let endISO = iso.string(from: endForISO)
+
+        isSubmitting = true
+        errorMessage = nil
+        defer { isSubmitting = false }
+
+        let request = CreateEventRequest(
+            layerId:       selectedLayerId,
+            title:         trimmedTitle,
+            description:   description.isEmpty ? nil : description,
+            location:      location.isEmpty ? nil : location,
+            startTime:     startISO,
+            endTime:       endISO,
+            isAllDay:      isAllDay,
+            category:      category?.rawValue,
+            colorOverride: nil,
+            isRecurring:   false,
+            recurrenceRule: nil,
+            attendeeIds:   attendeeIds.isEmpty ? nil : Array(attendeeIds)
+        )
+
+        do {
+            _ = try await viewModel.createEvent(request)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+// ─── Supporting types ─────────────────────────────────────────────────────────
+
+struct MemberProfile: Codable, Identifiable {
+    let id: String
+    let name: String
+    let profileColor: String
+    let role: String
+}
+
+// ─── Category chip ────────────────────────────────────────────────────────────
+
+struct CategoryChip: View {
+    let category: EventCategory
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 4) {
+                Text(category.emoji)
+                Text(category.rawValue.capitalized)
+                    .font(.caption.weight(.medium))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color.blue : Color(.secondarySystemFill))
+            .foregroundStyle(isSelected ? .white : .primary)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }

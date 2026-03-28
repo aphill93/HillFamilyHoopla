@@ -9,6 +9,7 @@ import { authRoutes } from "./routes/auth.routes.js";
 import { usersRoutes } from "./routes/users.routes.js";
 import { eventsRoutes } from "./routes/events.routes.js";
 import { tasksRoutes } from "./routes/tasks.routes.js";
+import { calendarRoutes } from "./routes/calendar.routes.js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -97,6 +98,7 @@ async function buildServer() {
   await fastify.register(usersRoutes, { prefix: "/users" });
   await fastify.register(eventsRoutes, { prefix: "/events" });
   await fastify.register(tasksRoutes, { prefix: "/tasks" });
+  await fastify.register(calendarRoutes, { prefix: "/calendar" });
 
   // ── Global error handler ──────────────────────────────────────────────────
 

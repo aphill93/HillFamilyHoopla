@@ -172,3 +172,7 @@ tmp/
 temp/
 .temp/
 *.tmp
+.logs/
+api/certs/
+api/.env
+web/.env.local

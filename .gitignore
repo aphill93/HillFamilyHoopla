@@ -1,0 +1,174 @@
+# ============================================================
+# HillFamilyHoopla .gitignore
+# Covers: Node.js, Next.js, Swift/Xcode, PostgreSQL, Docker
+# ============================================================
+
+# ------------------
+# Node.js / npm
+# ------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.yarn/
+.pnp.*
+.node_repl_history
+*.tgz
+.npmrc.local
+
+# ------------------
+# Build outputs
+# ------------------
+dist/
+build/
+out/
+.turbo/
+*.js.map
+*.d.ts.map
+
+# ------------------
+# Next.js
+# ------------------
+.next/
+/web/.next/
+/web/out/
+/web/.vercel/
+next-env.d.ts
+
+# ------------------
+# TypeScript
+# ------------------
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# ------------------
+# Environment variables
+# ------------------
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+.env.staging
+!.env.example
+
+# ------------------
+# Logs
+# ------------------
+logs/
+*.log
+lerna-debug.log*
+
+# ------------------
+# OS
+# ------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ------------------
+# IDE / Editors
+# ------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# ------------------
+# Swift / Xcode
+# ------------------
+## Xcode
+ios/*.xcodeproj/*
+!ios/*.xcodeproj/project.pbxproj
+!ios/*.xcodeproj/xcshareddata/
+!ios/*.xcodeproj/project.xcworkspace/
+ios/*.xcworkspace/
+!ios/*.xcworkspace/contents.xcworkspacedata
+/*.gcno
+
+## Build
+ios/DerivedData/
+ios/build/
+ios/*.moved-aside
+ios/*.xcuserstate
+ios/xcuserdata/
+
+## SPM
+ios/.build/
+ios/Packages/
+ios/*.resolved
+ios/.swiftpm/
+
+## CocoaPods
+ios/Pods/
+ios/Podfile.lock
+
+## Fastlane
+ios/fastlane/report.xml
+ios/fastlane/Preview.html
+ios/fastlane/screenshots/**/*.png
+ios/fastlane/test_output
+
+## Certificates / Provisioning
+ios/*.p12
+ios/*.cer
+ios/*.mobileprovision
+ios/*.p8
+ios/AuthKey_*.p8
+
+# ------------------
+# PostgreSQL
+# ------------------
+*.sql.bak
+pg_dump/
+*.pgdump
+pgdata/
+
+# ------------------
+# Docker
+# ------------------
+.docker/
+docker-compose.override.yml
+
+# ------------------
+# Testing
+# ------------------
+coverage/
+.nyc_output/
+junit.xml
+test-results/
+
+# ------------------
+# Secrets / Keys
+# ------------------
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+certs/
+secrets/
+private/
+jwt_private.pem
+jwt_public.pem
+mtls/
+
+# ------------------
+# Misc
+# ------------------
+.cache/
+tmp/
+temp/
+.temp/
+*.tmp

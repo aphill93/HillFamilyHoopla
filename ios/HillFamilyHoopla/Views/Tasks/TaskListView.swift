@@ -243,21 +243,175 @@ struct FilterChip: View {
     }
 }
 
-// ─── Create task sheet (stub) ─────────────────────────────────────────────────
+// ─── Create task sheet ────────────────────────────────────────────────────────
 
 struct CreateTaskSheet: View {
     @EnvironmentObject var viewModel: TaskListViewModel
     @Environment(\.dismiss) private var dismiss
 
+    @State private var title       = ""
+    @State private var description = ""
+    @State private var priority    = TaskPriority.medium
+    @State private var isKidMode   = false
+    @State private var hasDueDate  = false
+    @State private var dueDate     = Date().addingTimeInterval(86400)
+    @State private var category    = ""
+    @State private var assignedTo: String? = nil
+    @State private var members: [MemberProfile] = []
+    @State private var isSubmitting = false
+    @State private var errorMessage: String? = nil
+    @FocusState private var titleFocused: Bool
+
     var body: some View {
         NavigationStack {
-            Text("Create Task — coming soon")
-                .navigationTitle("New Task")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { dismiss() }
+            Form {
+                // Title
+                Section {
+                    TextField("Title", text: $title)
+                        .focused($titleFocused)
+                }
+
+                // Priority + Kid Mode
+                Section {
+                    Picker("Priority", selection: $priority) {
+                        ForEach(TaskPriority.allCases, id: \.self) { p in
+                            Text(p.rawValue.capitalized).tag(p)
+                        }
+                    }
+                    Toggle("Kid Mode ⭐", isOn: $isKidMode)
+                }
+
+                // Due date
+                Section {
+                    Toggle("Set due date", isOn: $hasDueDate.animation())
+                    if hasDueDate {
+                        DatePicker(
+                            "Due date",
+                            selection: $dueDate,
+                            in: Date()...,
+                            displayedComponents: .date
+                        )
                     }
                 }
+
+                // Assignee
+                if !members.isEmpty {
+                    Section("Assign to") {
+                        // "Anyone" option
+                        HStack {
+                            Circle()
+                                .fill(Color(.systemGray4))
+                                .frame(width: 28, height: 28)
+                                .overlay(
+                                    Text("?")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.secondary)
+                                )
+                            Text("Unassigned")
+                            Spacer()
+                            if assignedTo == nil {
+                                Image(systemName: "checkmark").foregroundStyle(.blue)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture { assignedTo = nil }
+
+                        ForEach(members) { member in
+                            HStack {
+                                Circle()
+                                    .fill(Color(hex: member.profileColor) ?? .blue)
+                                    .frame(width: 28, height: 28)
+                                    .overlay(
+                                        Text(member.name.prefix(1))
+                                            .font(.caption.bold())
+                                            .foregroundStyle(.white)
+                                    )
+                                Text(member.name)
+                                Spacer()
+                                if assignedTo == member.id {
+                                    Image(systemName: "checkmark").foregroundStyle(.blue)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { assignedTo = member.id }
+                        }
+                    }
+                }
+
+                // Category
+                Section("Category (optional)") {
+                    TextField("e.g. shopping, school", text: $category)
+                        .autocorrectionDisabled()
+                }
+
+                // Description
+                Section("Description (optional)") {
+                    TextField("Add notes", text: $description, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+
+                // Error
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                            .font(.callout)
+                    }
+                }
+            }
+            .navigationTitle("New Task")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") { Task { await submit() } }
+                        .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || isSubmitting)
+                        .overlay {
+                            if isSubmitting { ProgressView().scaleEffect(0.8) }
+                        }
+                }
+            }
+            .onAppear {
+                titleFocused = true
+                Task { await loadMembers() }
+            }
+        }
+    }
+
+    private func loadMembers() async {
+        do {
+            struct Response: Decodable { let users: [MemberProfile] }
+            let response: Response = try await APIClient.shared.get(path: "/users")
+            members = response.users
+        } catch {}
+    }
+
+    private func submit() async {
+        let trimmed = title.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+
+        isSubmitting = true
+        errorMessage = nil
+        defer { isSubmitting = false }
+
+        let iso = ISO8601DateFormatter()
+        let request = CreateTaskRequest(
+            title: trimmed,
+            description: description.isEmpty ? nil : description,
+            assignedTo: assignedTo,
+            dueDate: hasDueDate ? iso.string(from: dueDate) : nil,
+            priority: priority.rawValue,
+            isKidMode: isKidMode,
+            category: category.isEmpty ? nil : category
+        )
+
+        do {
+            try await viewModel.createTask(request)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }
@@ -302,6 +456,20 @@ final class TaskListViewModel: ObservableObject {
             }
         } catch {
             print("Failed to complete task:", error)
+        }
+    }
+
+    func createTask(_ request: CreateTaskRequest) async throws {
+        struct Response: Decodable { let task: Task }
+        let response: Response = try await api.post(path: "/tasks", body: request)
+        tasks.append(response.task)
+        tasks.sort {
+            switch ($0.dueDate, $1.dueDate) {
+            case let (a?, b?): return a < b
+            case (nil, _?): return false
+            case (_?, nil): return true
+            case (nil, nil): return $0.createdAt < $1.createdAt
+            }
         }
     }
 

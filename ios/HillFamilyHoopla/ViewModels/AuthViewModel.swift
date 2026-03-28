@@ -139,9 +139,63 @@ final class AuthViewModel: ObservableObject {
         }
     }
 
+    // ── Update profile ────────────────────────────────────────────────────────
+
+    func updateProfile(name: String, profileColor: String) async -> Bool {
+        guard let userId = currentUser?.id else { return false }
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            struct Body: Encodable { let name: String; let profileColor: String }
+            struct Response: Decodable { let user: UserProfile }
+            let response: Response = try await APIClient.shared.patch(
+                path: "/users/\(userId)",
+                body: Body(name: name, profileColor: profileColor)
+            )
+            currentUser = response.user
+            return true
+        } catch let error as APIError {
+            errorMessage = error.message
+            return false
+        } catch {
+            errorMessage = "Failed to update profile."
+            return false
+        }
+    }
+
+    // ── Change password ───────────────────────────────────────────────────────
+
+    func changePassword(current: String, new: String) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            struct Body: Encodable {
+                let currentPassword: String
+                let newPassword: String
+            }
+            let _: EmptyResponse = try await APIClient.shared.patch(
+                path: "/auth/change-password",
+                body: Body(currentPassword: current, newPassword: new)
+            )
+            return true
+        } catch let error as APIError {
+            errorMessage = error.message
+            return false
+        } catch {
+            errorMessage = "Failed to change password."
+            return false
+        }
+    }
+
     // ── Clear error ───────────────────────────────────────────────────────────
 
     func clearError() {
         errorMessage = nil
     }
 }
+
+private struct EmptyResponse: Decodable {}
